@@ -1,0 +1,153 @@
+# golangci-lint configuration for signalmice
+# Run with: golangci-lint run ./...
+
+run:
+  # Timeout for analysis
+  timeout: 5m
+
+  # Include test files
+  tests: true
+
+  # Skip vendor directory
+  skip-dirs:
+    - vendor
+
+linters:
+  # Enable all linters and then disable specific ones
+  enable:
+    # Default linters
+    - errcheck      # Check for unchecked errors
+    - gosimple      # Simplify code
+    - govet         # Go vet checks
+    - ineffassign   # Detect unused assignments
+    - staticcheck   # Static analysis
+    - unused        # Find unused code
+
+    # Additional linters
+    - bodyclose     # Check HTTP response body is closed
+    - contextcheck  # Check context usage
+    - dupl          # Find duplicate code
+    - durationcheck # Check duration multiplications
+    - errname       # Check error naming conventions
+    - errorlint     # Find error wrapping issues
+    - exhaustive    # Check exhaustive switch statements
+    - exportloopref # Check for loop variable capture
+    - forcetypeassert # Find forced type assertions
+    - goconst       # Find repeated strings that could be constants
+    - gocritic      # Opinionated code reviews
+    - gocyclo       # Check cyclomatic complexity
+    - gofmt         # Check code formatting
+    - goimports     # Check import formatting
+    - gosec         # Security checks
+    - misspell      # Find spelling mistakes
+    - nakedret      # Find naked returns
+    - nilerr        # Find nil error returns
+    - nilnil        # Find nil,nil returns
+    - noctx         # Find HTTP requests without context
+    - prealloc      # Find slice preallocation opportunities
+    - predeclared   # Find shadowed predeclared identifiers
+    - revive        # Fast, configurable, extensible linter
+    - rowserrcheck  # Check sql.Rows error handling
+    - sqlclosecheck # Check sql.Rows and sql.Stmt are closed
+    - stylecheck    # Style checks
+    - tenv          # Detect os.Setenv in tests
+    - testpackage   # Encourage _test package
+    - tparallel     # Detect inappropriate t.Parallel usage
+    - unconvert     # Find unnecessary type conversions
+    - unparam       # Find unused function parameters
+    - wastedassign  # Find wasted assignments
+    - whitespace    # Find trailing whitespace
+
+linters-settings:
+  errcheck:
+    # Check for ignored errors with blank identifier
+    check-blank: true
+
+  govet:
+    # Check for shadowed variables
+    shadow: true
+
+  gocyclo:
+    # Maximum complexity
+    min-complexity: 15
+
+  goconst:
+    # Minimum string length for constants
+    min-len: 3
+    # Minimum occurrences
+    min-occurrences: 3
+
+  gocritic:
+    enabled-tags:
+      - diagnostic
+      - style
+      - performance
+    disabled-checks:
+      - ifElseChain
+      - octalLiteral
+
+  gosec:
+    # Exclude generated files
+    excludes:
+      - G104 # Audit errors not checked (we handle this with errcheck)
+
+  misspell:
+    locale: US
+
+  revive:
+    rules:
+      - name: blank-imports
+      - name: context-as-argument
+      - name: context-keys-type
+      - name: dot-imports
+      - name: error-return
+      - name: error-strings
+      - name: error-naming
+      - name: exported
+      - name: if-return
+      - name: increment-decrement
+      - name: var-naming
+      - name: var-declaration
+      - name: package-comments
+      - name: range
+      - name: receiver-naming
+      - name: time-naming
+      - name: unexported-return
+      - name: indent-error-flow
+      - name: errorf
+
+  stylecheck:
+    # Use Go naming conventions
+    checks: ["all", "-ST1000", "-ST1003", "-ST1016", "-ST1020", "-ST1021", "-ST1022"]
+
+issues:
+  # Maximum issues per linter
+  max-issues-per-linter: 50
+
+  # Maximum same issues
+  max-same-issues: 3
+
+  # Exclude some linters from running on tests
+  exclude-rules:
+    - path: _test\.go
+      linters:
+        - dupl
+        - gosec
+        - goconst
+
+    # Exclude some staticcheck messages
+    - linters:
+        - staticcheck
+      text: "SA9003:"
+
+    # Exclude some gosec messages
+    - linters:
+        - gosec
+      text: "G304:" # File path provided as taint input
+
+output:
+  # Sort results by file, line, column
+  sort-results: true
+
+  # Print linter name in the output
+  print-linter-name: true

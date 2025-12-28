@@ -1,0 +1,29 @@
+# Git
+.git
+.gitignore
+
+# IDE
+.idea
+.vscode
+*.swp
+*.swo
+
+# Documentation
+README.md
+LICENSE
+
+# Docker
+docker-compose*.yml
+Dockerfile
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Build artifacts
+bin/
+dist/
+
+# Test files
+*_test.go

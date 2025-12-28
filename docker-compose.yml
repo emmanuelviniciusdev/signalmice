@@ -1,0 +1,36 @@
+version: '3.8'
+
+services:
+  signalmice:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: signalmice
+    restart: unless-stopped
+    # Required for host machine shutdown
+    privileged: true
+    pid: host
+    network_mode: host
+    volumes:
+      # Mount host's /proc for sysrq-trigger access
+      - /proc:/host/proc:ro
+    environment:
+      # Redis configuration
+      - REDIS_HOST=${REDIS_HOST:-localhost}
+      - REDIS_PORT=${REDIS_PORT:-6379}
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-}
+      - REDIS_DB=${REDIS_DB:-0}
+      # Opensearch configuration
+      - OPENSEARCH_URL=${OPENSEARCH_URL:-http://localhost:9200}
+      - OPENSEARCH_USERNAME=${OPENSEARCH_USERNAME:-}
+      - OPENSEARCH_PASSWORD=${OPENSEARCH_PASSWORD:-}
+      - OPENSEARCH_INDEX=${OPENSEARCH_INDEX:-signalmice-logs}
+      # Application configuration
+      - SIGNALMICE_KEY=${SIGNALMICE_KEY:-signalmice:00000000-0000-0000-0000-000000000000}
+      - SIGNALMICE_CHECK_INTERVAL=${SIGNALMICE_CHECK_INTERVAL:-60}
+      - HOST_PROC_PATH=/host/proc
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"

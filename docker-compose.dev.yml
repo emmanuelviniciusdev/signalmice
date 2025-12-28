@@ -1,0 +1,79 @@
+version: '3.8'
+
+# Development docker-compose with Redis and Opensearch for testing
+# NOTE: This is for local development/testing only
+# For production, use docker-compose.yml which expects external Redis/Opensearch
+
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: signalmice-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  opensearch:
+    image: opensearchproject/opensearch:2.11.0
+    container_name: signalmice-opensearch
+    environment:
+      - discovery.type=single-node
+      - plugins.security.disabled=true
+      - OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m
+    ports:
+      - "9200:9200"
+      - "9600:9600"
+    volumes:
+      - opensearch-data:/usr/share/opensearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s http://localhost:9200 | grep -q 'cluster_name'"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  signalmice:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: signalmice
+    restart: unless-stopped
+    # Required for host machine shutdown
+    privileged: true
+    pid: host
+    volumes:
+      # Mount host's /proc for sysrq-trigger access
+      - /proc:/host/proc:ro
+    environment:
+      # Redis configuration (pointing to local Redis)
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=
+      - REDIS_DB=0
+      # Opensearch configuration (pointing to local Opensearch)
+      - OPENSEARCH_URL=http://opensearch:9200
+      - OPENSEARCH_USERNAME=
+      - OPENSEARCH_PASSWORD=
+      - OPENSEARCH_INDEX=signalmice-logs
+      # Application configuration
+      - SIGNALMICE_KEY=${SIGNALMICE_KEY:-signalmice:00000000-0000-0000-0000-000000000000}
+      - SIGNALMICE_CHECK_INTERVAL=${SIGNALMICE_CHECK_INTERVAL:-10}
+      - HOST_PROC_PATH=/host/proc
+    depends_on:
+      redis:
+        condition: service_healthy
+      opensearch:
+        condition: service_healthy
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  redis-data:
+  opensearch-data:
