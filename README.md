@@ -83,7 +83,8 @@ All configuration is done via environment variables:
 | `OPENSEARCH_URL` | `http://localhost:9200` | Opensearch URL |
 | `OPENSEARCH_USERNAME` | `` | Opensearch username |
 | `OPENSEARCH_PASSWORD` | `` | Opensearch password |
-| `OPENSEARCH_INDEX` | `signalmice-logs` | Opensearch index for logs |
+| `OPENSEARCH_INDEX` | `signalmice-logs` | Opensearch index base name for logs |
+| `OPENSEARCH_USE_DAILY_INDEX` | `true` | Use date-based index names (e.g., `signalmice-logs-2024-12-28`) for ISM retention policies |
 | `SIGNALMICE_KEY` | `signalmice:00000000-0000-0000-0000-000000000000` | Redis key to monitor |
 | `SIGNALMICE_CHECK_INTERVAL` | `60` | Check interval in seconds |
 | `HOST_PROC_PATH` | `/host/proc` | Path to host's /proc (mounted) |
@@ -145,6 +146,68 @@ Logs are sent to the configured Opensearch index with the following structure:
   "redis_key": "signalmice:00000000-0000-0000-0000-000000000000"
 }
 ```
+
+### Log Retention
+
+By default, signalmice uses date-based index names (e.g., `signalmice-logs-2024-12-28`) which enables automatic log retention via OpenSearch Index State Management (ISM) policies.
+
+#### Setting Up 90-Day Log Retention
+
+To automatically delete logs older than 90 days, create an ISM policy in OpenSearch:
+
+```bash
+# Create the ISM policy
+curl -X PUT "https://your-opensearch:9200/_plugins/_ism/policies/signalmice-log-retention" \
+  -H "Content-Type: application/json" \
+  -u admin:password \
+  -d '{
+    "policy": {
+      "description": "Delete signalmice logs after 90 days",
+      "default_state": "hot",
+      "states": [
+        {
+          "name": "hot",
+          "actions": [],
+          "transitions": [
+            {
+              "state_name": "delete",
+              "conditions": {
+                "min_index_age": "90d"
+              }
+            }
+          ]
+        },
+        {
+          "name": "delete",
+          "actions": [
+            {
+              "delete": {}
+            }
+          ]
+        }
+      ],
+      "ism_template": {
+        "index_patterns": ["signalmice-logs-*"],
+        "priority": 100
+      }
+    }
+  }'
+```
+
+This policy will:
+1. Apply to all indices matching `signalmice-logs-*`
+2. Keep indices in the "hot" state initially
+3. Automatically delete indices when they are older than 90 days
+
+#### Disabling Date-Based Indexing
+
+If you prefer a single static index (not recommended for production), set:
+
+```bash
+OPENSEARCH_USE_DAILY_INDEX=false
+```
+
+Note: With a static index, you'll need to manually manage log retention or use document-level cleanup.
 
 ## Security Considerations
 

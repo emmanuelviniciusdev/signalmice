@@ -15,10 +15,11 @@ type Config struct {
 	RedisDB       int
 
 	// Opensearch configuration
-	OpensearchURL      string
-	OpensearchUsername string
-	OpensearchPassword string
-	OpensearchIndex    string
+	OpensearchURL           string
+	OpensearchUsername      string
+	OpensearchPassword      string
+	OpensearchIndex         string
+	OpensearchUseDailyIndex bool
 
 	// Application configuration
 	RedisKey      string
@@ -44,10 +45,11 @@ func Load() *Config {
 		RedisDB:       redisDB,
 
 		// Opensearch
-		OpensearchURL:      getEnv("OPENSEARCH_URL", "http://localhost:9200"),
-		OpensearchUsername: getEnv("OPENSEARCH_USERNAME", ""),
-		OpensearchPassword: getEnv("OPENSEARCH_PASSWORD", ""),
-		OpensearchIndex:    getEnv("OPENSEARCH_INDEX", "signalmice-logs"),
+		OpensearchURL:           getEnv("OPENSEARCH_URL", "http://localhost:9200"),
+		OpensearchUsername:      getEnv("OPENSEARCH_USERNAME", ""),
+		OpensearchPassword:      getEnv("OPENSEARCH_PASSWORD", ""),
+		OpensearchIndex:         getEnv("OPENSEARCH_INDEX", "signalmice-logs"),
+		OpensearchUseDailyIndex: getEnvBool("OPENSEARCH_USE_DAILY_INDEX", true),
 
 		// Application
 		RedisKey:      getEnv("SIGNALMICE_KEY", DefaultRedisKey),
@@ -62,6 +64,14 @@ func Load() *Config {
 func getEnv(key, defaultValue string) string {
 	if value, exists := os.LookupEnv(key); exists {
 		return value
+	}
+	return defaultValue
+}
+
+// getEnvBool returns the boolean value of an environment variable or a default value
+func getEnvBool(key string, defaultValue bool) bool {
+	if value, exists := os.LookupEnv(key); exists {
+		return value == "true" || value == "1" || value == "yes"
 	}
 	return defaultValue
 }

@@ -11,6 +11,7 @@ func TestLoad_Defaults(t *testing.T) {
 	envVars := []string{
 		"REDIS_HOST", "REDIS_PORT", "REDIS_PASSWORD", "REDIS_DB",
 		"OPENSEARCH_URL", "OPENSEARCH_USERNAME", "OPENSEARCH_PASSWORD", "OPENSEARCH_INDEX",
+		"OPENSEARCH_USE_DAILY_INDEX",
 		"SIGNALMICE_KEY", "SIGNALMICE_CHECK_INTERVAL", "HOST_PROC_PATH",
 	}
 	for _, v := range envVars {
@@ -45,6 +46,9 @@ func TestLoad_Defaults(t *testing.T) {
 	}
 	if cfg.OpensearchIndex != "signalmice-logs" {
 		t.Errorf("expected OpensearchIndex 'signalmice-logs', got '%s'", cfg.OpensearchIndex)
+	}
+	if !cfg.OpensearchUseDailyIndex {
+		t.Errorf("expected OpensearchUseDailyIndex true by default, got false")
 	}
 
 	// Test Application defaults
@@ -153,5 +157,50 @@ func TestDefaultRedisKey(t *testing.T) {
 	expected := "signalmice:00000000-0000-0000-0000-000000000000"
 	if DefaultRedisKey != expected {
 		t.Errorf("expected DefaultRedisKey '%s', got '%s'", expected, DefaultRedisKey)
+	}
+}
+
+func TestLoad_OpensearchUseDailyIndex_Disabled(t *testing.T) {
+	os.Setenv("OPENSEARCH_USE_DAILY_INDEX", "false")
+	defer os.Unsetenv("OPENSEARCH_USE_DAILY_INDEX")
+
+	cfg := Load()
+
+	if cfg.OpensearchUseDailyIndex {
+		t.Errorf("expected OpensearchUseDailyIndex false when set to 'false', got true")
+	}
+}
+
+func TestGetEnvBool(t *testing.T) {
+	tests := []struct {
+		name         string
+		envValue     string
+		defaultValue bool
+		expected     bool
+	}{
+		{"true string", "true", false, true},
+		{"1 string", "1", false, true},
+		{"yes string", "yes", false, true},
+		{"false string", "false", true, false},
+		{"0 string", "0", true, false},
+		{"no string", "no", true, false},
+		{"empty uses default true", "", true, true},
+		{"empty uses default false", "", false, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.envValue != "" {
+				os.Setenv("TEST_BOOL", tt.envValue)
+				defer os.Unsetenv("TEST_BOOL")
+			} else {
+				os.Unsetenv("TEST_BOOL")
+			}
+
+			result := getEnvBool("TEST_BOOL", tt.defaultValue)
+			if result != tt.expected {
+				t.Errorf("getEnvBool(%q, %v) = %v, expected %v", tt.envValue, tt.defaultValue, result, tt.expected)
+			}
+		})
 	}
 }

@@ -14,11 +14,12 @@ import (
 
 func createTestConfig() *config.Config {
 	return &config.Config{
-		OpensearchURL:      "http://localhost:9200",
-		OpensearchUsername: "",
-		OpensearchPassword: "",
-		OpensearchIndex:    "test-logs",
-		RedisKey:           "signalmice:test-key",
+		OpensearchURL:           "http://localhost:9200",
+		OpensearchUsername:      "",
+		OpensearchPassword:      "",
+		OpensearchIndex:         "test-logs",
+		OpensearchUseDailyIndex: true,
+		RedisKey:                "signalmice:test-key",
 	}
 }
 
@@ -61,9 +62,10 @@ func TestLevelConstants(t *testing.T) {
 
 func TestNewLogger_WithoutOpensearch(t *testing.T) {
 	cfg := &config.Config{
-		OpensearchURL:   "http://non-existent:9200",
-		OpensearchIndex: "test-logs",
-		RedisKey:        "test-key",
+		OpensearchURL:           "http://non-existent:9200",
+		OpensearchIndex:         "test-logs",
+		OpensearchUseDailyIndex: true,
+		RedisKey:                "test-key",
 	}
 
 	// Should not fail even if Opensearch is not available
@@ -84,10 +86,11 @@ func TestLogger_Info(t *testing.T) {
 	defer log.SetOutput(os.Stderr)
 
 	logger := &Logger{
-		client:   nil, // No Opensearch client
-		index:    "test",
-		hostname: "test-host",
-		redisKey: "test-key",
+		client:        nil, // No Opensearch client
+		baseIndex:     "test",
+		useDailyIndex: false,
+		hostname:      "test-host",
+		redisKey:      "test-key",
 	}
 
 	ctx := context.Background()
@@ -108,10 +111,11 @@ func TestLogger_Warn(t *testing.T) {
 	defer log.SetOutput(os.Stderr)
 
 	logger := &Logger{
-		client:   nil,
-		index:    "test",
-		hostname: "test-host",
-		redisKey: "test-key",
+		client:        nil,
+		baseIndex:     "test",
+		useDailyIndex: false,
+		hostname:      "test-host",
+		redisKey:      "test-key",
 	}
 
 	ctx := context.Background()
@@ -129,10 +133,11 @@ func TestLogger_Error(t *testing.T) {
 	defer log.SetOutput(os.Stderr)
 
 	logger := &Logger{
-		client:   nil,
-		index:    "test",
-		hostname: "test-host",
-		redisKey: "test-key",
+		client:        nil,
+		baseIndex:     "test",
+		useDailyIndex: false,
+		hostname:      "test-host",
+		redisKey:      "test-key",
 	}
 
 	ctx := context.Background()
@@ -150,10 +155,11 @@ func TestLogger_Debug(t *testing.T) {
 	defer log.SetOutput(os.Stderr)
 
 	logger := &Logger{
-		client:   nil,
-		index:    "test",
-		hostname: "test-host",
-		redisKey: "test-key",
+		client:        nil,
+		baseIndex:     "test",
+		useDailyIndex: false,
+		hostname:      "test-host",
+		redisKey:      "test-key",
 	}
 
 	ctx := context.Background()
@@ -171,10 +177,11 @@ func TestLogger_InfoWithExtra(t *testing.T) {
 	defer log.SetOutput(os.Stderr)
 
 	logger := &Logger{
-		client:   nil,
-		index:    "test",
-		hostname: "test-host",
-		redisKey: "test-key",
+		client:        nil,
+		baseIndex:     "test",
+		useDailyIndex: false,
+		hostname:      "test-host",
+		redisKey:      "test-key",
 	}
 
 	ctx := context.Background()
@@ -196,10 +203,11 @@ func TestLogger_WarnWithExtra(t *testing.T) {
 	defer log.SetOutput(os.Stderr)
 
 	logger := &Logger{
-		client:   nil,
-		index:    "test",
-		hostname: "test-host",
-		redisKey: "test-key",
+		client:        nil,
+		baseIndex:     "test",
+		useDailyIndex: false,
+		hostname:      "test-host",
+		redisKey:      "test-key",
 	}
 
 	ctx := context.Background()
@@ -217,10 +225,11 @@ func TestLogger_ErrorWithExtra(t *testing.T) {
 	defer log.SetOutput(os.Stderr)
 
 	logger := &Logger{
-		client:   nil,
-		index:    "test",
-		hostname: "test-host",
-		redisKey: "test-key",
+		client:        nil,
+		baseIndex:     "test",
+		useDailyIndex: false,
+		hostname:      "test-host",
+		redisKey:      "test-key",
 	}
 
 	ctx := context.Background()
@@ -238,10 +247,11 @@ func TestLogger_DebugWithExtra(t *testing.T) {
 	defer log.SetOutput(os.Stderr)
 
 	logger := &Logger{
-		client:   nil,
-		index:    "test",
-		hostname: "test-host",
-		redisKey: "test-key",
+		client:        nil,
+		baseIndex:     "test",
+		useDailyIndex: false,
+		hostname:      "test-host",
+		redisKey:      "test-key",
 	}
 
 	ctx := context.Background()
@@ -250,5 +260,88 @@ func TestLogger_DebugWithExtra(t *testing.T) {
 	output := buf.String()
 	if !strings.Contains(output, "[DEBUG]") {
 		t.Errorf("expected output to contain '[DEBUG]', got: %s", output)
+	}
+}
+
+func TestLogger_GetIndexName_WithDailyIndex(t *testing.T) {
+	logger := &Logger{
+		client:        nil,
+		baseIndex:     "signalmice-logs",
+		useDailyIndex: true,
+		hostname:      "test-host",
+		redisKey:      "test-key",
+	}
+
+	indexName := logger.getIndexName()
+
+	// Expected format: signalmice-logs-YYYY-MM-DD
+	expectedPrefix := "signalmice-logs-"
+	if !strings.HasPrefix(indexName, expectedPrefix) {
+		t.Errorf("expected index name to start with '%s', got '%s'", expectedPrefix, indexName)
+	}
+
+	// Verify date format (should be today's date in UTC)
+	expectedDate := time.Now().UTC().Format("2006-01-02")
+	expectedIndexName := "signalmice-logs-" + expectedDate
+	if indexName != expectedIndexName {
+		t.Errorf("expected index name '%s', got '%s'", expectedIndexName, indexName)
+	}
+}
+
+func TestLogger_GetIndexName_WithoutDailyIndex(t *testing.T) {
+	logger := &Logger{
+		client:        nil,
+		baseIndex:     "signalmice-logs",
+		useDailyIndex: false,
+		hostname:      "test-host",
+		redisKey:      "test-key",
+	}
+
+	indexName := logger.getIndexName()
+
+	expected := "signalmice-logs"
+	if indexName != expected {
+		t.Errorf("expected index name '%s', got '%s'", expected, indexName)
+	}
+}
+
+func TestLogger_GetIndexName_DateFormat(t *testing.T) {
+	logger := &Logger{
+		client:        nil,
+		baseIndex:     "test-index",
+		useDailyIndex: true,
+		hostname:      "test-host",
+		redisKey:      "test-key",
+	}
+
+	indexName := logger.getIndexName()
+
+	// Extract the date part (after "test-index-")
+	datePart := strings.TrimPrefix(indexName, "test-index-")
+
+	// Verify it matches YYYY-MM-DD format
+	_, err := time.Parse("2006-01-02", datePart)
+	if err != nil {
+		t.Errorf("date part '%s' does not match YYYY-MM-DD format: %v", datePart, err)
+	}
+}
+
+func TestLogger_GetIndexName_UsesUTC(t *testing.T) {
+	logger := &Logger{
+		client:        nil,
+		baseIndex:     "test-index",
+		useDailyIndex: true,
+		hostname:      "test-host",
+		redisKey:      "test-key",
+	}
+
+	indexName := logger.getIndexName()
+
+	// The date should be UTC, not local time
+	expectedDate := time.Now().UTC().Format("2006-01-02")
+	expectedIndexName := "test-index-" + expectedDate
+
+	if indexName != expectedIndexName {
+		t.Errorf("expected UTC-based index name '%s', got '%s'", expectedIndexName, indexName)
 	}
 }

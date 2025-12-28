@@ -38,10 +38,11 @@ type LogEntry struct {
 
 // Logger handles logging to both stdout and Opensearch
 type Logger struct {
-	client   *opensearch.Client
-	index    string
-	hostname string
-	redisKey string
+	client        *opensearch.Client
+	baseIndex     string
+	useDailyIndex bool
+	hostname      string
+	redisKey      string
 }
 
 // NewLogger creates a new logger that writes to Opensearch
@@ -76,20 +77,30 @@ func NewLogger(cfg *config.Config) (*Logger, error) {
 	if err != nil {
 		log.Printf("[WARN] Could not connect to Opensearch: %v. Logging will continue to stdout only.", err)
 		return &Logger{
-			client:   nil,
-			index:    cfg.OpensearchIndex,
-			hostname: hostname,
-			redisKey: cfg.RedisKey,
+			client:        nil,
+			baseIndex:     cfg.OpensearchIndex,
+			useDailyIndex: cfg.OpensearchUseDailyIndex,
+			hostname:      hostname,
+			redisKey:      cfg.RedisKey,
 		}, nil
 	}
 	defer res.Body.Close()
 
 	return &Logger{
-		client:   client,
-		index:    cfg.OpensearchIndex,
-		hostname: hostname,
-		redisKey: cfg.RedisKey,
+		client:        client,
+		baseIndex:     cfg.OpensearchIndex,
+		useDailyIndex: cfg.OpensearchUseDailyIndex,
+		hostname:      hostname,
+		redisKey:      cfg.RedisKey,
 	}, nil
+}
+
+// getIndexName returns the index name, optionally with a date suffix for daily indexing
+func (l *Logger) getIndexName() string {
+	if l.useDailyIndex {
+		return fmt.Sprintf("%s-%s", l.baseIndex, time.Now().UTC().Format("2006-01-02"))
+	}
+	return l.baseIndex
 }
 
 // log sends a log entry to Opensearch and prints to stdout
@@ -122,7 +133,7 @@ func (l *Logger) sendToOpensearch(ctx context.Context, entry LogEntry) {
 	}
 
 	res, err := l.client.Index(
-		l.index,
+		l.getIndexName(),
 		bytes.NewReader(data),
 		l.client.Index.WithContext(ctx),
 	)
