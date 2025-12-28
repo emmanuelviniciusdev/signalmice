@@ -1,5 +1,5 @@
 # Binaries
-signalmice
+/signalmice
 *.exe
 *.exe~
 *.dll
